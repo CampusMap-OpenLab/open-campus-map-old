@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  postgis-db:
+    image: postgis/postgis:15-3.3
+    container_name: opencampus-postgis
+    restart: always
+    environment:
+      POSTGRES_DB: opencampus_gis
+      POSTGRES_USER: campus_admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-academic_dev_pass_2026}
+    command: >
+      postgres
+      -c shared_buffers=2GB
+      -c work_mem=64MB
+      -c maintenance_work_mem=512MB
+      -c max_connections=150
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis-tile-cache:
+    image: redis:7-alpine
+    container_name: opencampus-redis
+    restart: always
+    command: redis-server --maxmemory 1536mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+
+  tileserver-gl:
+    image: maptiler/tileserver-gl:latest
+    container_name: opencampus-tileserver
+    restart: always
+    volumes:
+      - ./data:/data
+    ports:
+      - "8080:8080"
+
+  routing-web-portal:
+    image: nginx:alpine
+    container_name: opencampus-web
+    restart: always
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - postgis-db
+      - redis-tile-cache
+
+volumes:
+  pgdata:
